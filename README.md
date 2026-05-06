@@ -58,3 +58,6 @@ hanoi-3d-game/
 
 ## 🧩 已知问题
 暂无功能 Bug，所有交互、动画、算法逻辑均运行稳定。
+
+## 🎮 在线体验
+[点击这里直接玩游戏](https://zhangjiajie20061102.github.io/hanoi-3d-game/)
