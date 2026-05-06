@@ -1,0 +1,812 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>3D 汉诺塔学习游戏</title>
+<style>
+* {margin:0;padding:0;box-sizing:border-box;font-family:Arial,sans-serif;}
+
+#starCanvas {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: -1;
+    background: linear-gradient(180deg, #0a0e27 0%, #1a1f4b 40%, #2d1b4e 70%, #1a0f2e 100%);
+}
+
+body{
+    min-height:100vh;
+    padding:20px;
+    position: relative;
+}
+
+h1{
+    text-align:center;
+    margin-bottom:20px;
+    color:#fff;
+    font-size:28px;
+    text-shadow: 0 2px 10px rgba(100, 180, 255, 0.5);
+    letter-spacing: 2px;
+}
+
+.control{
+    max-width:600px;
+    margin:0 auto 30px;
+    display:flex;
+    gap:15px;
+    align-items:center;
+    justify-content:center;
+    flex-wrap:wrap;
+    background: rgba(255255, 255, 255, 0.08);
+    backdrop-filter: blur(10px);
+    padding: 15px 25px;
+    border-radius: 16px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.control label { color: #e0e0ff; font-size: 14px; }
+.control input[type="range"] { accent-color: #4091ec; cursor: pointer; }
+.control input[type="number"] {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: #fff;
+    border-radius: 6px;
+    padding: 4px 8px;
+    text-align: center;
+}
+.control input:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+button{
+    padding:8px 16px;
+    border:none;
+    border-radius:8px;
+    background: linear-gradient(135deg, #4091ec, #667eea);
+    color:#fff;
+    font-size:14px;
+    cursor:pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 15px rgba(64, 145, 236, 0.3);
+}
+button:hover:not(:disabled){
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(64, 145, 236, 0.5);
+}
+button:disabled{
+    opacity:0.4;
+    cursor:not-allowed;
+    transform:none;
+    box-shadow: none;
+}
+
+.count{
+    text-align:center;
+    font-size:16px;
+    margin-bottom:20px;
+    color:#c0c8ff;
+    background: rgba(255, 255, 255, 0.06);
+    backdrop-filter: blur(8px);
+    padding: 10px 20px;
+    border-radius: 12px;
+    display: inline-block;
+    left: 50%;
+    position: relative;
+    transform: translateX(-50%);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.count span { color: #fff; font-weight: bold; font-size: 18px; }
+
+.game{
+    perspective:1200px;
+    max-width:800px;
+    margin:0 auto;
+    position:relative;
+}
+
+.base{
+    position:absolute;
+    bottom:-20px;
+    left:50%;
+    transform:translateX(-50%);
+    width:90%;
+    height:20px;
+    background: linear-gradient(180deg, #8b5a2b, #6b4423);
+    border-radius:8px;
+    box-shadow:0 4px 20px rgba(0,0,0,0.4), inset 0 2px 4px rgba(255,255,255,0.1);
+    z-index:0;
+}
+
+.tower-wrap{
+    display:flex;
+    justify-content:space-around;
+    align-items:flex-end;
+    height:320px;
+    position:relative;
+    z-index:1;
+}
+
+.tower{
+    width:24px;
+    height:260px;
+    background: linear-gradient(90deg, #8b6f47, #a67c52, #8b6f47);
+    border-radius:4px;
+    position:relative;
+    display:flex;
+    flex-direction:column-reverse;
+    align-items:center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow:0 4px 15px rgba(0,0,0,0.3), inset 0 1px 2px rgba(255,255,255,0.1);
+}
+.tower:hover{
+    background: linear-gradient(90deg, #a08050, #b88d5e, #a08050);
+    box-shadow:0 6px 25px rgba(166, 124, 82, 0.4);
+}
+.tower.highlight{
+    background: linear-gradient(90deg, #c49a6c, #d4aa7c, #c49a6c);
+    box-shadow: 0 0 25px rgba(196, 154, 108, 0.6);
+}
+
+.disk{
+    height:18px;
+    border-radius:6px;
+    margin-bottom:2px;
+    box-shadow:inset 0 2px 6px rgba(255,255,255,0.3), 0 3px 8px rgba(0,0,0,0.3);
+    cursor:pointer;
+    transition:all 0.3s ease;
+    position: relative;
+    z-index: 10;
+    border: 1px solid rgba(255,255,255,0.1);
+}
+.disk.selected{
+    transform:translateY(-20px) scale(1.02);
+    box-shadow:0 8px 25px rgba(0,0,0,0.5), 0 0 20px rgba(255,255,255,0.2);
+    z-index: 20;
+}
+
+@keyframes shake{
+    0%,100%{transform:translateX(0);}
+    25%{transform:translateX(-5px);}
+    75%{transform:translateX(5px);}
+}
+.disk.wrong{
+    animation:shake 0.3s ease;
+    border:2px solid #ff4757;
+    box-shadow: 0 0 15px rgba(255, 71, 87, 0.5);
+}
+
+@keyframes winAnim{
+    0%{transform:scale(1) translateY(0) rotate(0deg);}
+    25%{transform:scale(1.05) translateY(-8px) rotate(1deg);}
+    50%{transform:scale(1.05) translateY(-8px) rotate(-1deg);}
+    75%{transform:scale(1.05) translateY(-8px) rotate(1deg);}
+    100%{transform:scale(1) translateY(0) rotate(0deg);}
+}
+.disk.win{
+    animation:winAnim 0.8s ease infinite;
+    box-shadow: 0 0 30px rgba(255, 255, 255, 0.4);
+}
+
+.tip{
+    text-align:center;
+    font-size:16px;
+    color:#ff6b8a;
+    height:24px;
+    margin:10px 0;
+    font-weight: 600;
+    transition:opacity 0.2s;
+    text-shadow: 0 1px 4px rgba(0,0,0,0.3);
+}
+
+.modal-overlay{
+    display:none;
+    position:fixed;
+    top:0;left:0;right:0;bottom:0;
+    background:rgba(0,0,0,0.7);
+    backdrop-filter: blur(5px);
+    z-index:98;
+}
+.modal{
+    display:none;
+    position:fixed;
+    top:50%;left:50%;
+    transform:translate(-50%,-50%);
+    background: linear-gradient(135deg, rgba(30, 30, 60, 0.95), rgba(20, 20, 50, 0.95));
+    padding:35px 45px;
+    border-radius:16px;
+    text-align:center;
+    box-shadow:0 20px 60px rgba(0,0,0,0.5), 0 0 30px rgba(100, 150, 255, 0.1);
+    z-index:99;
+    min-width: 300px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+.modal h2{
+    color: #2ecc71;
+    margin-bottom: 15px;
+    font-size: 26px;
+    text-shadow: 0 0 20px rgba(46, 204, 113, 0.3);
+}
+.modal p{
+    margin-bottom: 25px;
+    color: #c0c8ff;
+    font-size: 16px;
+}
+.modal button{
+    padding: 12px 35px;
+    font-size: 16px;
+    background: linear-gradient(135deg, #2ecc71, #27ae60);
+}
+</style>
+</head>
+
+<body>
+
+<canvas id="starCanvas"></canvas>
+
+<h1>✨ 3D 汉诺塔学习游戏</h1>
+
+<div class="control">
+    <div>
+        <label>圆盘数量：</label>
+        <input type="range" id="slider" min="2" max="10" value="5">
+        <input type="number" id="numInput" min="2" max="10" value="5" style="width:55px;">
+    </div>
+    <button id="resetBtn">🔄 重置游戏</button>
+    <button id="autoBtn">🤖 自动解题</button>
+    <button id="pauseBtn" disabled>⏸️ 暂停</button>
+</div>
+
+<div class="count">移动步数：<span id="step">0</span> / 最少需要 <span id="minStep">31</span> 步</div>
+<div class="tip" id="tipText"></div>
+
+<div class="game">
+    <div class="base"></div>
+    <div class="tower-wrap">
+        <div class="tower" data-index="0"></div>
+        <div class="tower" data-index="1"></div>
+        <div class="tower" data-index="2"></div>
+    </div>
+</div>
+
+<div class="modal-overlay" id="modalOverlay"></div>
+<div class="modal" id="winModal">
+    <h2>🎉 恭喜通关！</h2>
+    <p>总步数：<span id="finalStep"></span></p>
+    <button id="modalBtn">再来一局</button>
+</div>
+
+<script>
+// ==================== 星空背景 ====================
+class StarField {
+    constructor() {
+        this.canvas = document.getElementById('starCanvas');
+        this.ctx = this.canvas.getContext('2d');
+        this.stars = [];
+        this.meteors = [];
+        this.resize();
+        this.initStars();
+        this.animate();
+        window.addEventListener('resize', () => this.resize());
+    }
+
+    resize() {
+        this.canvas.width = window.innerWidth;
+        this.canvas.height = window.innerHeight;
+    }
+
+    initStars() {
+        const count = Math.floor((this.canvas.width * this.canvas.height) / 3000);
+        this.stars = [];
+        for (let i = 0; i < count; i++) {
+            this.stars.push({
+                x: Math.random() * this.canvas.width,
+                y: Math.random() * this.canvas.height,
+                radius: Math.random() * 1.5 + 0.3,
+                alpha: Math.random(),
+                speed: Math.random() * 0.02 + 0.005,
+                twinkleSpeed: Math.random() * 0.03 + 0.01,
+                twinkleDir: 1
+            });
+        }
+    }
+
+    drawStar(star) {
+        star.alpha += star.twinkleSpeed * star.twinkleDir;
+        if (star.alpha > 1 || star.alpha < 0.2) {
+            star.twinkleDir *= -1;
+        }
+        star.alpha = Math.max(0.1, Math.min(1, star.alpha));
+
+        this.ctx.beginPath();
+        this.ctx.arc(star.x, star.y, star.radius, 0, Math.PI * 2);
+        this.ctx.fillStyle = `rgba(255, 255, 255, ${star.alpha})`;
+        this.ctx.fill();
+
+        if (star.radius > 1) {
+            this.ctx.beginPath();
+            this.ctx.arc(star.x, star.y, star.radius * 3, 0, Math.PI * 2);
+            const gradient = this.ctx.createRadialGradient(star.x, star.y, 0, star.x, star.y, star.radius * 3);
+            gradient.addColorStop(0, `rgba(200, 220, 255, ${star.alpha * 0.3})`);
+            gradient.addColorStop(1, 'rgba(200, 220, 255, 0)');
+            this.ctx.fillStyle = gradient;
+            this.ctx.fill();
+        }
+    }
+
+    spawnMeteor() {
+        if (Math.random() > 0.995 && this.meteors.length < 3) {
+            this.meteors.push({
+                x: Math.random() * this.canvas.width + 200,
+                y: Math.random() * this.canvas.height * 0.3 - 100,
+                length: Math.random() * 80 + 40,
+                speed: Math.random() * 8 + 4,
+                alpha: 1
+            });
+        }
+    }
+
+    drawMeteor(meteor) {
+        meteor.x -= meteor.speed;
+        meteor.y += meteor.speed * 0.6;
+        meteor.alpha -= 0.008;
+
+        if (meteor.alpha <= 0 || meteor.x < -200 || meteor.y > this.canvas.height + 200) {
+            return false;
+        }
+
+        const gradient = this.ctx.createLinearGradient(
+            meteor.x, meteor.y,
+            meteor.x + meteor.length, meteor.y - meteor.length * 0.6
+        );
+        gradient.addColorStop(0, `rgba(255, 255, 255, ${meteor.alpha})`);
+        gradient.addColorStop(0.5, `rgba(150, 200, 255, ${meteor.alpha * 0.5})`);
+        gradient.addColorStop(1, `rgba(100, 150, 255, 0)`);
+
+        this.ctx.beginPath();
+        this.ctx.moveTo(meteor.x, meteor.y);
+        this.ctx.lineTo(meteor.x + meteor.length, meteor.y - meteor.length * 0.6);
+        this.ctx.strokeStyle = gradient;
+        this.ctx.lineWidth = 2;
+        this.ctx.lineCap = 'round';
+        this.ctx.stroke();
+
+        this.ctx.beginPath();
+        this.ctx.arc(meteor.x, meteor.y, 2, 0, Math.PI * 2);
+        this.ctx.fillStyle = `rgba(255, 255, 255, ${meteor.alpha})`;
+        this.ctx.fill();
+
+        return true;
+    }
+
+    drawNebula() {
+        const gradient1 = this.ctx.createRadialGradient(
+            this.canvas.width * 0.3, this.canvas.height * 0.4, 0,
+            this.canvas.width * 0.3, this.canvas.height * 0.4, 300
+        );
+        gradient1.addColorStop(0, 'rgba(80, 50, 150, 0.08)');
+        gradient1.addColorStop(1, 'rgba(80, 50, 150, 0)');
+        this.ctx.fillStyle = gradient1;
+        this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+
+        const gradient2 = this.ctx.createRadialGradient(
+            this.canvas.width * 0.7, this.canvas.height * 0.6, 0,
+            this.canvas.width * 0.7, this.canvas.height * 0.6, 250
+        );
+        gradient2.addColorStop(0, 'rgba(50, 80, 150, 0.06)');
+        gradient2.addColorStop(1, 'rgba(50, 80, 150, 0)');
+        this.ctx.fillStyle = gradient2;
+        this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+    }
+
+    animate() {
+        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+
+        const bgGradient = this.ctx.createLinearGradient(0, 0, 0, this.canvas.height);
+        bgGradient.addColorStop(0, '#0a0e27');
+        bgGradient.addColorStop(0.4, '#1a1f4b');
+        bgGradient.addColorStop(0.7, '#2d1b4e');
+        bgGradient.addColorStop(1, '#1a0f2e');
+        this.ctx.fillStyle = bgGradient;
+        this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+
+        this.drawNebula();
+        this.stars.forEach(star => this.drawStar(star));
+        this.spawnMeteor();
+        this.meteors = this.meteors.filter(m => this.drawMeteor(m));
+
+        requestAnimationFrame(() => this.animate());
+    }
+}
+
+// ==================== 汉诺塔游戏（修复数量选择问题）====================
+class HanoiGame {
+    constructor() {
+        this.diskCount = 5;
+        this.pegs = [[], [], []];
+        this.moves = 0;
+        this.isAutoSolving = false;
+        this.isPaused = false;
+        this.selectedPegIndex = null;
+        this.selectedDiskSize = null;
+        this.isGameOver = false;
+        this.autoSolveTimer = null;
+        this.autoMoves = [];
+        this.autoMoveIndex = 0;
+        this.inputDebounceTimer = null;  // 新增：输入防抖定时器
+
+        this.colorList = [
+            "#ff6b6b","#feca57","#48dbfb",
+            "#ff9ff3","#54a0ff","#5f27cd",
+            "#00d2d3","#ff9f43","#2ecc71","#9b59b6"
+        ];
+
+        window.game = this;
+        this.bindEvents();
+        this.init();
+    }
+
+    bindEvents() {
+        this.slider = document.getElementById("slider");
+        this.numInput = document.getElementById("numInput");
+        this.resetBtn = document.getElementById("resetBtn");
+        this.autoBtn = document.getElementById("autoBtn");
+        this.pauseBtn = document.getElementById("pauseBtn");
+        this.stepDom = document.getElementById("step");
+        this.minStepDom = document.getElementById("minStep");
+        this.tipDom = document.getElementById("tipText");
+        this.winModal = document.getElementById("winModal");
+        this.modalOverlay = document.getElementById("modalOverlay");
+        this.finalStepDom = document.getElementById("finalStep");
+        this.modalBtn = document.getElementById("modalBtn");
+
+        // ========== 修复1：滑块使用 change 事件（松开时触发）==========
+        this.slider.addEventListener("change", () => {
+            if (this.isAutoSolving) return;  // 自动解题时忽略
+            this.numInput.value = this.slider.value;
+            this.diskCount = parseInt(this.slider.value);
+            this.init();
+        });
+
+        // 滑块拖动时只更新数字显示，不重置游戏
+        this.slider.addEventListener("input", () => {
+            if (this.isAutoSolving) return;
+            this.numInput.value = this.slider.value;
+        });
+
+        // ========== 修复2：数字输入框使用 change 事件 + 防抖 ==========
+        this.numInput.addEventListener("change", () => {
+            if (this.isAutoSolving) return;
+            
+            let val = parseInt(this.numInput.value);
+            if (isNaN(val)) val = this.diskCount;  // 无效输入保持原值
+            if (val < 2) val = 2;
+            if (val > 10) val = 10;
+            
+            this.slider.value = val;
+            this.numInput.value = val;
+            
+            // 只有值真正改变时才重置
+            if (val !== this.diskCount) {
+                this.diskCount = val;
+                this.init();
+            }
+        });
+
+        // 输入时实时验证范围，但不重置游戏
+        this.numInput.addEventListener("input", () => {
+            if (this.isAutoSolving) return;
+            
+            let val = parseInt(this.numInput.value);
+            if (isNaN(val)) return;
+            
+            // 视觉反馈：超出范围时变红
+            if (val < 2 || val > 10) {
+                this.numInput.style.borderColor = "#ff4757";
+            } else {
+                this.numInput.style.borderColor = "rgba(255, 255, 255, 0.2)";
+                this.slider.value = val;
+            }
+        });
+
+        // 失去焦点时确保值有效
+        this.numInput.addEventListener("blur", () => {
+            if (this.isAutoSolving) return;
+            
+            let val = parseInt(this.numInput.value);
+            if (isNaN(val) || val < 2) val = 2;
+            if (val > 10) val = 10;
+            
+            this.numInput.value = val;
+            this.slider.value = val;
+            this.numInput.style.borderColor = "rgba(255, 255, 255, 0.2)";
+            
+            if (val !== this.diskCount) {
+                this.diskCount = val;
+                this.init();
+            }
+        });
+
+        this.resetBtn.addEventListener("click", () => this.init());
+        this.autoBtn.addEventListener("click", () => this.autoSolve());
+        this.pauseBtn.addEventListener("click", () => this.togglePause());
+        this.modalBtn.addEventListener("click", () => this.closeModal());
+
+        document.querySelectorAll(".tower").forEach(pegDom => {
+            pegDom.addEventListener("click", (e) => this.handlePegClick(e));
+        });
+    }
+
+    // ========== 修复3：init() 彻底清理所有状态 ==========
+    init() {
+        // 清理所有定时器
+        if (this.autoSolveTimer) {
+            clearTimeout(this.autoSolveTimer);
+            this.autoSolveTimer = null;
+        }
+        if (this.inputDebounceTimer) {
+            clearTimeout(this.inputDebounceTimer);
+            this.inputDebounceTimer = null;
+        }
+
+        // 重置游戏状态
+        this.moves = 0;
+        this.isAutoSolving = false;
+        this.isPaused = false;
+        this.isGameOver = false;
+        this.selectedPegIndex = null;
+        this.selectedDiskSize = null;
+        this.autoMoves = [];
+        this.autoMoveIndex = 0;
+
+        // 重置UI状态
+        this.autoBtn.disabled = false;
+        this.resetBtn.disabled = false;
+        this.pauseBtn.disabled = true;
+        this.pauseBtn.innerText = "⏸️ 暂停";
+        this.slider.disabled = false;
+        this.numInput.disabled = false;
+
+        // 重置柱子
+        this.pegs = [[], [], []];
+        document.querySelectorAll(".tower").forEach(t => {
+            t.innerHTML = "";
+            t.classList.remove("highlight");
+        });
+
+        // 初始化圆盘
+        for (let i = this.diskCount; i >= 1; i--) {
+            this.pegs[0].push(i);
+        }
+
+        // 更新显示
+        this.stepDom.innerText = this.moves;
+        this.minStepDom.innerText = Math.pow(2, this.diskCount) - 1;
+        this.tipDom.innerText = "";
+        this.closeModal();
+        this.renderDisks();
+    }
+
+    renderDisks() {
+        this.pegs.forEach((pegDisks, pegIndex) => {
+            const pegDom = document.querySelector(`.tower[data-index="${pegIndex}"]`);
+            if (!pegDom) return;
+            pegDom.innerHTML = "";
+
+            pegDisks.forEach((diskSize, diskIndex) => {
+                const diskDom = document.createElement("div");
+                diskDom.className = "disk";
+                diskDom.style.width = `${45 + diskSize * 14}px`;
+                diskDom.style.backgroundColor = this.colorList[diskSize - 1];
+
+                if (this.selectedPegIndex === pegIndex && diskIndex === pegDisks.length - 1) {
+                    diskDom.classList.add("selected");
+                }
+
+                diskDom.addEventListener("click", (e) => this.handleDiskClick(e, pegIndex, diskSize));
+                pegDom.appendChild(diskDom);
+            });
+        });
+    }
+
+    handleDiskClick(e, pegIndex, diskSize) {
+        if (this.isAutoSolving || this.isGameOver) return;
+        e.stopPropagation();
+
+        const topDisk = this.pegs[pegIndex].at(-1);
+        if (diskSize !== topDisk) {
+            this.showTip("只能移动最顶部的圆盘！", true);
+            return;
+        }
+
+        this.selectPeg(pegIndex, diskSize);
+    }
+
+    handlePegClick(e) {
+        if (this.isAutoSolving || this.isGameOver) return;
+
+        const targetPegIndex = parseInt(e.currentTarget.dataset.index);
+        if (isNaN(targetPegIndex)) return;
+
+        if (this.selectedPegIndex === null) {
+            const topDisk = this.pegs[targetPegIndex].at(-1);
+            if (topDisk) {
+                this.selectPeg(targetPegIndex, topDisk);
+            }
+            return;
+        }
+
+        this.attemptMove(this.selectedPegIndex, targetPegIndex);
+    }
+
+    selectPeg(pegIndex, diskSize) {
+        if (this.selectedPegIndex === pegIndex) {
+            this.clearSelection();
+            return;
+        }
+
+        this.selectedPegIndex = pegIndex;
+        this.selectedDiskSize = diskSize;
+        this.renderDisks();
+        this.showTip(`已选中圆盘 ${diskSize}，请选择目标柱子`, false);
+    }
+
+    clearSelection() {
+        this.selectedPegIndex = null;
+        this.selectedDiskSize = null;
+        this.renderDisks();
+        this.tipDom.innerText = "";
+    }
+
+    attemptMove(fromIndex, toIndex) {
+        if (fromIndex === toIndex) {
+            this.clearSelection();
+            return;
+        }
+
+        const fromPeg = this.pegs[fromIndex];
+        const toPeg = this.pegs[toIndex];
+        const disk = fromPeg.at(-1);
+
+        if (!disk) {
+            this.showTip("源柱子没有圆盘！", true);
+            return;
+        }
+
+        if (toPeg.length > 0 && toPeg.at(-1) < disk) {
+            this.showTip("不能将大圆盘放在小圆盘上！", true);
+            const diskDom = document.querySelector(`.tower[data-index="${fromIndex}"] .disk:last-child`);
+            if (diskDom) {
+                diskDom.classList.add("wrong");
+                setTimeout(() => diskDom.classList.remove("wrong"), 300);
+            }
+            return;
+        }
+
+        fromPeg.pop();
+        toPeg.push(disk);
+        this.moves++;
+        this.stepDom.innerText = this.moves;
+        this.clearSelection();
+        this.renderDisks();
+        this.checkWin();
+    }
+
+    showTip(msg, isError) {
+        this.tipDom.innerText = msg;
+        this.tipDom.style.color = isError ? "#ff6b8a" : "#6bc5ff";
+        if (!isError) {
+            setTimeout(() => {
+                if (this.tipDom.innerText === msg) {
+                    this.tipDom.innerText = "";
+                }
+            }, 2000);
+        }
+    }
+
+    checkWin() {
+        if (this.pegs[2].length === this.diskCount) {
+            this.isGameOver = true;
+            this.finalStepDom.innerText = this.moves;
+            this.winModal.style.display = "block";
+            this.modalOverlay.style.display = "block";
+
+            document.querySelectorAll(".disk").forEach(d => d.classList.add("win"));
+        }
+    }
+
+    closeModal() {
+        this.winModal.style.display = "none";
+        this.modalOverlay.style.display = "none";
+    }
+
+    generateMoves(n, from, to, aux) {
+        if (n === 0) return;
+        this.generateMoves(n - 1, from, aux, to);
+        this.autoMoves.push({ from, to });
+        this.generateMoves(n - 1, aux, to, from);
+    }
+
+    // ========== 修复4：自动解题时正确禁用数量选择 ==========
+    autoSolve() {
+        if (this.isAutoSolving) return;
+
+        this.init();
+        this.isAutoSolving = true;
+        this.autoBtn.disabled = true;
+        this.resetBtn.disabled = true;
+        this.pauseBtn.disabled = false;
+        
+        // 禁用数量选择控件
+        this.slider.disabled = true;
+        this.numInput.disabled = true;
+
+        this.autoMoves = [];
+        this.generateMoves(this.diskCount, 0, 2, 1);
+        this.autoMoveIndex = 0;
+
+        this.showTip("🤖 自动解题中...", false);
+        this.executeNextAutoMove();
+    }
+
+    executeNextAutoMove() {
+        if (!this.isAutoSolving || this.isPaused || this.autoMoveIndex >= this.autoMoves.length) {
+            if (this.autoMoveIndex >= this.autoMoves.length) {
+                this.isAutoSolving = false;
+                this.pauseBtn.disabled = true;
+                this.autoBtn.disabled = false;
+                this.resetBtn.disabled = false;
+                // 重新启用数量选择
+                this.slider.disabled = false;
+                this.numInput.disabled = false;
+                this.checkWin();
+            }
+            return;
+        }
+
+        const move = this.autoMoves[this.autoMoveIndex];
+
+        const disk = this.pegs[move.from].pop();
+        this.pegs[move.to].push(disk);
+
+        this.moves++;
+        this.stepDom.innerText = this.moves;
+
+        // 高亮当前操作的柱子
+        document.querySelectorAll(".tower").forEach(t => t.classList.remove("highlight"));
+        document.querySelector(`.tower[data-index="${move.from}"]`).classList.add("highlight");
+        document.querySelector(`.tower[data-index="${move.to}"]`).classList.add("highlight");
+
+        this.renderDisks();
+        this.autoMoveIndex++;
+
+        setTimeout(() => {
+            document.querySelectorAll(".tower").forEach(t => t.classList.remove("highlight"));
+        }, 400);
+
+        this.autoSolveTimer = setTimeout(() => this.executeNextAutoMove(), 600);
+    }
+
+    togglePause() {
+        this.isPaused = !this.isPaused;
+        this.pauseBtn.innerText = this.isPaused ? "▶️ 继续" : "⏸️ 暂停";
+        if (!this.isPaused) {
+            this.executeNextAutoMove();
+        }
+    }
+}
+
+// 启动
+document.addEventListener("DOMContentLoaded", () => {
+    new StarField();
+    new HanoiGame();
+});
+</script>
+
+</body>
+</html>
